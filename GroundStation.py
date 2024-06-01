@@ -1,6 +1,8 @@
 from inputs import get_gamepad
 import math
 import threading
+import struct
+import serial
 
 class XboxController(object):
     MAX_TRIG_VAL = math.pow(2, 8)
@@ -35,12 +37,20 @@ class XboxController(object):
 
 
     def read(self): # return the buttons/triggers that you care about in this methode
-        x = self.LeftJoystickX
-        y = self.LeftJoystickY
+        x = self.LeftJoystickY
+        y = self.RightJoystickX
         a = self.A
         b = self.X # b=1, x=2
         rb = self.RightBumper
-        return [x, y, a, b, rb]
+
+        device_id = 1
+        start_bit =  1 << 7
+
+        self.uart_packet = struct.pack('@Bbb', start_bit | device_id, self.LeftJoystickY, self.RightJoystickX)
+
+
+    def write_uart(self):
+        ser.write(self.uart_packet)     # write a string
 
 
     def _monitor_controller(self):
@@ -48,13 +58,21 @@ class XboxController(object):
             events = get_gamepad()
             for event in events:
                 if event.code == 'ABS_Y':
-                    self.LeftJoystickY = event.state / XboxController.MAX_JOY_VAL # normalize between -1 and 1
+                    self.LeftJoystickY = int(event.state / XboxController.MAX_JOY_VAL * 100) # normalize between -1 and 1
+                    if abs(self.LeftJoystickY) <= 20:
+                        self.LeftJoystickY = 0
                 elif event.code == 'ABS_X':
-                    self.LeftJoystickX = event.state / XboxController.MAX_JOY_VAL # normalize between -1 and 1
+                    self.LeftJoystickX = int(event.state / XboxController.MAX_JOY_VAL * 100) # normalize between -1 and 1
+                    if abs(self.LeftJoystickX) <= 20:
+                        self.LeftJoystickX = 0
                 elif event.code == 'ABS_RY':
-                    self.RightJoystickY = event.state / XboxController.MAX_JOY_VAL # normalize between -1 and 1
+                    self.RightJoystickY = int(event.state / XboxController.MAX_JOY_VAL * 100) # normalize between -1 and 1
+                    if abs(self.RightJoystickY) <= 20:
+                        self.RightJoystickY = 0
                 elif event.code == 'ABS_RX':
-                    self.RightJoystickX = event.state / XboxController.MAX_JOY_VAL # normalize between -1 and 1
+                    self.RightJoystickX = int(event.state / XboxController.MAX_JOY_VAL * 100) # normalize between -1 and 1
+                    if abs(self.RightJoystickX) <= 20:
+                        self.RightJoystickX = 0
                 elif event.code == 'ABS_Z':
                     self.LeftTrigger = event.state / XboxController.MAX_TRIG_VAL # normalize between 0 and 1
                 elif event.code == 'ABS_RZ':
@@ -92,6 +110,8 @@ class XboxController(object):
 
 
 if __name__ == '__main__':
+    ser = serial.Serial('COM13', 57600)  # open serial port
     joy = XboxController()
     while True:
-        print(joy.read())
+        joy.read()
+        joy.write_uart()
