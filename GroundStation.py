@@ -3,6 +3,9 @@ import math
 import threading
 import struct
 import serial
+import time
+import sys
+
 
 class XboxController(object):
     MAX_TRIG_VAL = math.pow(2, 8)
@@ -46,10 +49,11 @@ class XboxController(object):
         device_id = 1
         start_bit =  1 << 7
 
-        self.uart_packet = struct.pack('@Bbb', start_bit | device_id, self.LeftJoystickY, self.RightJoystickX)
+        self.uart_packet = struct.pack('@Bbbb', start_bit | device_id, self.LeftJoystickY, self.RightJoystickX, 0)
 
 
     def write_uart(self):
+        print(self.uart_packet)
         ser.write(self.uart_packet)     # write a string
 
 
@@ -112,6 +116,15 @@ class XboxController(object):
 if __name__ == '__main__':
     ser = serial.Serial('COM13', 57600)  # open serial port
     joy = XboxController()
+    # while True:
+    #     handshake_message = int.from_bytes(ser.read(1), "big")
+    #     print(handshake_message)
+    #     if handshake_message == 0b11111111:
+    #         break
+    # ser.write(0b11111111)
+    # print("handshake complete")
+    # print(int.from_bytes(ser.read(1), "big"))
     while True:
         joy.read()
         joy.write_uart()
+        print(int.from_bytes(ser.read(1), "little"))  
