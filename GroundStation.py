@@ -114,17 +114,12 @@ class XboxController(object):
 
 
 if __name__ == '__main__':
+    #TODO: implment handshake logic
+    #TODO: implement dynamic output (only when value change)
     ser = serial.Serial('COM13', 57600)  # open serial port
     joy = XboxController()
-    # while True:
-    #     handshake_message = int.from_bytes(ser.read(1), "big")
-    #     print(handshake_message)
-    #     if handshake_message == 0b11111111:
-    #         break
-    # ser.write(0b11111111)
-    # print("handshake complete")
-    # print(int.from_bytes(ser.read(1), "big"))
     while True:
         joy.read()
         joy.write_uart()
-        print(int.from_bytes(ser.read(1), "little"))  
+        print(struct.unpack("@bb", ser.read(2))) 
+        
