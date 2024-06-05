@@ -12,7 +12,6 @@ class XboxController(object):
     MAX_JOY_VAL = math.pow(2, 15)
 
     def __init__(self):
-
         self.LeftJoystickY = 0
         self.LeftJoystickX = 0
         self.RightJoystickY = 0
@@ -37,6 +36,7 @@ class XboxController(object):
         self._monitor_thread = threading.Thread(target=self._monitor_controller, args=())
         self._monitor_thread.daemon = True
         self._monitor_thread.start()
+        self.uart_packet = None
 
 
     def read(self): # return the buttons/triggers that you care about in this methode
@@ -48,8 +48,10 @@ class XboxController(object):
 
         device_id = 1
         start_bit =  1 << 7
-
-        self.uart_packet = struct.pack('@Bbbb', start_bit | device_id, self.LeftJoystickY, self.RightJoystickX, 0)
+        
+        #data struct (start_bit + device id, message type, payload, crc, pad[optional])
+        #message type: 1 handshake 1 byte for payload; 2 heart beat message; 3joystick input; 4 button action
+        self.uart_packet = struct.pack('@BBbb', start_bit | device_id, 0b00000011, self.LeftJoystickY, self.RightJoystickX)
 
 
     def write_uart(self):
@@ -112,14 +114,27 @@ class XboxController(object):
 
 
 
+def handshake():
+    while(True):
+        ser.write(struct.pack('@B', 0x01))
+        ack_data = ser.read(1)
+        # print(ack_data)
+        if ack_data == b'\x81':
+            break
+    print("Handshake Complete")
+    
+    
+
 
 if __name__ == '__main__':
     #TODO: implment handshake logic
     #TODO: implement dynamic output (only when value change)
-    ser = serial.Serial('COM13', 57600)  # open serial port
+    #TODO: setup on UWRT computer
+    ser = serial.Serial('COM13', 57600, timeout=1)  # open serial port
     joy = XboxController()
+    handshake()
     while True:
         joy.read()
         joy.write_uart()
-        print(struct.unpack("@bb", ser.read(2))) 
+        print(struct.unpack("@bb", ser.read(2)))
         
