@@ -51,7 +51,7 @@ class XboxController(object):
         
         #data struct (start_bit + device id, message type, payload, crc, pad[optional])
         #message type: 1 handshake 1 byte for payload; 2 heart beat message; 3joystick input; 4 button action
-        self.uart_packet = struct.pack('@BBbb', start_bit | device_id, 0b00000011, self.LeftJoystickY, self.RightJoystickX)
+        self.uart_packet = struct.pack('@BBbb', start_bit | device_id, 0b00000011, int(self.LeftJoystickY/2), int(self.RightJoystickX/2))
 
 
     def write_uart(self):
