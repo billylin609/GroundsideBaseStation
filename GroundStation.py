@@ -130,7 +130,7 @@ if __name__ == '__main__':
     #TODO: implment handshake logic
     #TODO: implement dynamic output (only when value change)
     #TODO: setup on UWRT computer
-    ser = serial.Serial('COM13', 57600, timeout=1)  # open serial port
+    ser = serial.Serial('/dev/ttyUSB0', 57600)  # open serial port
     joy = XboxController()
     handshake()
     while True:
