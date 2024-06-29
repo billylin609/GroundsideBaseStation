@@ -10,6 +10,7 @@ import sys
 class XboxController(object):
     MAX_TRIG_VAL = math.pow(2, 8)
     MAX_JOY_VAL = math.pow(2, 15)
+    WINDOW_SIZE = 5  # Adjust the window size for more or less smoothing
 
     def __init__(self):
         self.LeftJoystickY = 0
@@ -33,56 +34,71 @@ class XboxController(object):
         self.UpDPad = 0
         self.DownDPad = 0
 
+        self.target_LeftJoystickY = 0
+        self.target_LeftJoystickX = 0
+        self.target_RightJoystickY = 0
+        self.target_RightJoystickX = 0
+
+        self.LeftJoystickY_history = []
+        self.RightJoystickX_history = []
+
         self._monitor_thread = threading.Thread(target=self._monitor_controller, args=())
         self._monitor_thread.daemon = True
         self._monitor_thread.start()
         self.uart_packet = None
 
-
-    def read(self): # return the buttons/triggers that you care about in this methode
-        x = self.LeftJoystickY
-        y = self.RightJoystickX
+    def read(self):
+        self.target_LeftJoystickY = self.LeftJoystickY
+        self.target_RightJoystickX = self.RightJoystickX
         a = self.A
-        b = self.X # b=1, x=2
+        b = self.X
         rb = self.RightBumper
 
-        device_id = 1
-        start_bit =  1 << 7
-        
-        #data struct (start_bit + device id, message type, payload, crc, pad[optional])
-        #message type: 1 handshake 1 byte for payload; 2 heart beat message; 3joystick input; 4 button action
-        self.uart_packet = struct.pack('@BBbb', start_bit | device_id, 0b00000011, int(self.LeftJoystickY/2), int(self.RightJoystickX/2))
+        self._smooth_speeds()
 
+        device_id = 1
+        start_bit = 1 << 7
+
+        self.uart_packet = struct.pack('@BBbb', start_bit | device_id, 0b00000011, int(self.LeftJoystickY / 2), int(self.RightJoystickX / 2))
 
     def write_uart(self):
         print(self.uart_packet)
-        ser.write(self.uart_packet)     # write a string
+        ser.write(self.uart_packet)
 
+    def _smooth_speeds(self):
+        self.LeftJoystickY = self._smooth_value(self.LeftJoystickY_history, self.target_LeftJoystickY)
+        self.RightJoystickX = self._smooth_value(self.RightJoystickX_history, self.target_RightJoystickX)
+
+    def _smooth_value(self, history, new_value):
+        history.append(new_value)
+        if len(history) > XboxController.WINDOW_SIZE:
+            history.pop(0)
+        return sum(history) / len(history)
 
     def _monitor_controller(self):
         while True:
             events = get_gamepad()
             for event in events:
                 if event.code == 'ABS_Y':
-                    self.LeftJoystickY = int(event.state / XboxController.MAX_JOY_VAL * 100) # normalize between -1 and 1
+                    self.LeftJoystickY = int(event.state / XboxController.MAX_JOY_VAL * 100)
                     if abs(self.LeftJoystickY) <= 20:
                         self.LeftJoystickY = 0
                 elif event.code == 'ABS_X':
-                    self.LeftJoystickX = int(event.state / XboxController.MAX_JOY_VAL * 100) # normalize between -1 and 1
+                    self.LeftJoystickX = int(event.state / XboxController.MAX_JOY_VAL * 100)
                     if abs(self.LeftJoystickX) <= 20:
                         self.LeftJoystickX = 0
                 elif event.code == 'ABS_RY':
-                    self.RightJoystickY = int(event.state / XboxController.MAX_JOY_VAL * 100) # normalize between -1 and 1
+                    self.RightJoystickY = int(event.state / XboxController.MAX_JOY_VAL * 100)
                     if abs(self.RightJoystickY) <= 20:
                         self.RightJoystickY = 0
                 elif event.code == 'ABS_RX':
-                    self.RightJoystickX = int(event.state / XboxController.MAX_JOY_VAL * 100) # normalize between -1 and 1
+                    self.RightJoystickX = int(event.state / XboxController.MAX_JOY_VAL * 100)
                     if abs(self.RightJoystickX) <= 20:
                         self.RightJoystickX = 0
                 elif event.code == 'ABS_Z':
-                    self.LeftTrigger = event.state / XboxController.MAX_TRIG_VAL # normalize between 0 and 1
+                    self.LeftTrigger = event.state / XboxController.MAX_TRIG_VAL
                 elif event.code == 'ABS_RZ':
-                    self.RightTrigger = event.state / XboxController.MAX_TRIG_VAL # normalize between 0 and 1
+                    self.RightTrigger = event.state / XboxController.MAX_TRIG_VAL
                 elif event.code == 'BTN_TL':
                     self.LeftBumper = event.state
                 elif event.code == 'BTN_TR':
@@ -90,9 +106,9 @@ class XboxController(object):
                 elif event.code == 'BTN_SOUTH':
                     self.A = event.state
                 elif event.code == 'BTN_NORTH':
-                    self.Y = event.state #previously switched with X
+                    self.Y = event.state
                 elif event.code == 'BTN_WEST':
-                    self.X = event.state #previously switched with Y
+                    self.X = event.state
                 elif event.code == 'BTN_EAST':
                     self.B = event.state
                 elif event.code == 'BTN_THUMBL':
@@ -111,7 +127,6 @@ class XboxController(object):
                     self.UpDPad = event.state
                 elif event.code == 'BTN_TRIGGER_HAPPY4':
                     self.DownDPad = event.state
-
 
 
 def handshake():
