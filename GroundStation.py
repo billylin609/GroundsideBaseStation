@@ -10,7 +10,7 @@ import sys
 class XboxController(object):
     MAX_TRIG_VAL = math.pow(2, 8)
     MAX_JOY_VAL = math.pow(2, 15)
-    WINDOW_SIZE = 5  # Adjust the window size for more or less smoothing
+    WINDOW_SIZE = 3  # Adjust the window size for more or less smoothing
 
     def __init__(self):
         self.LeftJoystickY = 0
